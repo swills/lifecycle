@@ -189,6 +189,7 @@ func (c *createCmd) Exec() error {
 			c.previousImageRef,
 			c.runImageRef,
 			c.skipRestore,
+			false,
 			cmd.DefaultLogger,
 		)
 		if err != nil {
@@ -245,6 +246,7 @@ func (c *createCmd) Exec() error {
 			c.previousImageRef,
 			c.runImageRef,
 			c.skipRestore,
+			false,
 			cmd.DefaultLogger,
 		)
 		if err != nil {

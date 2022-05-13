@@ -1,7 +1,12 @@
 package platform
 
 import (
+	"path"
+	"strings"
+
 	"github.com/pkg/errors"
+
+	"github.com/buildpacks/lifecycle/cmd"
 
 	"github.com/buildpacks/lifecycle/image"
 	"github.com/buildpacks/lifecycle/internal/str"
@@ -18,7 +23,7 @@ type AnalyzeInputs struct {
 	LegacyCacheDir   string
 	LegacyGroupPath  string
 	OutputImageRef   string
-	OCILayoutDir	 string
+	OCILayoutDir     string
 	PreviousImageRef string
 	RunImageRef      string
 	StackPath        string
@@ -26,6 +31,7 @@ type AnalyzeInputs struct {
 	GID              int
 	SkipLayers       bool
 	UseDaemon        bool
+	UseOCI           bool
 }
 
 // RegistryImages returns the inputs that are images in a registry.
@@ -64,13 +70,24 @@ func (r *InputsResolver) fillDefaults(inputs *AnalyzeInputs, logger Logger) erro
 	}
 
 	if inputs.PreviousImageRef == "" {
-		inputs.PreviousImageRef = inputs.OutputImageRef
+		if !inputs.UseOCI {
+			inputs.PreviousImageRef = inputs.OutputImageRef
+		} else {
+			inputs.PreviousImageRef = path.Join(cmd.DefaultOCIDir, inputs.OutputImageRef)
+		}
 	}
 
 	return r.fillRunImage(inputs, logger)
 }
 
 func (r *InputsResolver) fillRunImage(inputs *AnalyzeInputs, logger Logger) error {
+	if inputs.UseOCI {
+		// received something like: cnbs/sample-stack-run:alpine, we need to remove everything after :
+		imageRef := strings.SplitN(inputs.RunImageRef, ":", 2)
+		inputs.RunImageRef = path.Join(cmd.DefaultOCIDir, imageRef[0])
+		return nil
+	}
+
 	if r.platformAPI.LessThan("0.7") || inputs.RunImageRef != "" {
 		return nil
 	}
@@ -119,10 +136,8 @@ func (r *InputsResolver) validate(inputs AnalyzeInputs, logger Logger) error {
 		logger.Warn("Not restoring cached layer metadata, no cache flag specified.")
 	}
 
-	if inputs.OCILayoutDir != "" {
-		if inputs.UseDaemon {
-			return errors.New("exporting to multiples target is not allowed")
-		}
+	if inputs.UseDaemon && inputs.UseOCI {
+		return errors.New("exporting to multiples target is not allowed")
 	}
 
 	return nil

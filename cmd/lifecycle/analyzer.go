@@ -41,6 +41,7 @@ func (a *analyzeCmd) DefineFlags() {
 		cmd.FlagUID(&a.UID)
 		cmd.FlagUseDaemon(&a.UseDaemon)
 		cmd.FlagExportOCI(&a.OCILayoutDir)
+		cmd.FlagUseOCI(&a.UseOCI)
 	case a.platform.API().AtLeast("0.7"):
 		cmd.FlagAnalyzedPath(&a.AnalyzedPath)
 		cmd.FlagCacheImage(&a.CacheImageRef)
@@ -52,6 +53,8 @@ func (a *analyzeCmd) DefineFlags() {
 		cmd.FlagTags(&a.AdditionalTags)
 		cmd.FlagUID(&a.UID)
 		cmd.FlagUseDaemon(&a.UseDaemon)
+		cmd.FlagExportOCI(&a.OCILayoutDir)
+		cmd.FlagUseOCI(&a.UseOCI)
 	default:
 		cmd.FlagAnalyzedPath(&a.AnalyzedPath)
 		cmd.FlagCacheDir(&a.LegacyCacheDir)
@@ -106,13 +109,7 @@ func (a *analyzeCmd) Privileges() error {
 
 // Exec executes the command
 func (a *analyzeCmd) Exec() error {
-	factory := lifecycle.NewAnalyzerFactory(
-		a.platform.API(),
-		NewCacheHandler(a.keychain),
-		NewConfigHandler(),
-		NewImageHandler(a.docker, a.keychain),
-		NewRegistryHandler(a.keychain),
-	)
+	factory := a.newAnalyzerFactory()
 	analyzer, err := factory.NewAnalyzer(
 		a.AdditionalTags,
 		a.CacheImageRef,
@@ -125,6 +122,7 @@ func (a *analyzeCmd) Exec() error {
 		a.PreviousImageRef,
 		a.RunImageRef,
 		a.SkipLayers,
+		a.UseOCI,
 		cmd.DefaultLogger,
 	)
 	if err != nil {
@@ -140,4 +138,23 @@ func (a *analyzeCmd) Exec() error {
 		return errors.Wrap(err, "writing analyzed.toml")
 	}
 	return nil
+}
+
+func (a *analyzeCmd) newAnalyzerFactory() *lifecycle.AnalyzerFactory {
+	if !a.UseOCI {
+		return lifecycle.NewAnalyzerFactory(
+			a.platform.API(),
+			NewCacheHandler(a.keychain),
+			NewConfigHandler(),
+			NewImageHandler(a.docker, a.keychain),
+			NewRegistryHandler(a.keychain),
+		)
+	}
+	return lifecycle.NewAnalyzerFactory(
+		a.platform.API(),
+		NewCacheHandler(a.keychain),
+		NewConfigHandler(),
+		NewOCIImageHandler(),
+		NewRegistryHandler(a.keychain),
+	)
 }
