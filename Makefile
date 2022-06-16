@@ -211,6 +211,35 @@ $(BUILD_DIR)/darwin-amd64/lifecycle/launcher:
 	$(GOENV) $(GOBUILD) -o $(OUT_DIR)/launcher -a ./cmd/launcher
 	test $$(du -m $(OUT_DIR)/launcher|cut -f 1) -le 4
 
+build-freebsd-amd64: build-freebsd-amd64-lifecycle build-freebsd-amd64-launcher
+
+build-freebsd-amd64-lifecycle: $(BUILD_DIR)/freebsd-amd64/lifecycle/lifecycle
+$(BUILD_DIR)/freebsd-amd64/lifecycle/lifecycle: export GOOS:=freebsd
+$(BUILD_DIR)/freebsd-amd64/lifecycle/lifecycle: export GOARCH:=amd64
+$(BUILD_DIR)/freebsd-amd64/lifecycle/lifecycle: OUT_DIR:=$(BUILD_DIR)/$(GOOS)-$(GOARCH)/lifecycle
+$(BUILD_DIR)/freebsd-amd64/lifecycle/lifecycle: $(GOFILES)
+$(BUILD_DIR)/freebsd-amd64/lifecycle/lifecycle:
+	@echo "> Building lifecycle for freebsd/amd64..."
+	$(GOENV) $(GOBUILD) -o $(OUT_DIR)/lifecycle -a ./cmd/lifecycle
+	@echo "> Creating lifecycle symlinks for freebsd/amd64..."
+	ln -sf lifecycle $(OUT_DIR)/detector
+	ln -sf lifecycle $(OUT_DIR)/analyzer
+	ln -sf lifecycle $(OUT_DIR)/restorer
+	ln -sf lifecycle $(OUT_DIR)/builder
+	ln -sf lifecycle $(OUT_DIR)/exporter
+	ln -sf lifecycle $(OUT_DIR)/rebaser
+
+build-freebsd-amd64-launcher: $(BUILD_DIR)/freebsd-amd64/lifecycle/launcher
+$(BUILD_DIR)/freebsd-amd64/lifecycle/launcher: export GOOS:=freebsd
+$(BUILD_DIR)/freebsd-amd64/lifecycle/launcher: export GOARCH:=amd64
+$(BUILD_DIR)/freebsd-amd64/lifecycle/launcher: OUT_DIR:=$(BUILD_DIR)/$(GOOS)-$(GOARCH)/lifecycle
+$(BUILD_DIR)/freebsd-amd64/lifecycle/launcher: $(GOFILES)
+$(BUILD_DIR)/freebsd-amd64/lifecycle/launcher:
+	@echo "> Building launcher for freebsd/amd64..."
+	mkdir -p $(OUT_DIR)
+	$(GOENV) $(GOBUILD) -o $(OUT_DIR)/launcher -a ./cmd/launcher
+	test $$(du -m $(OUT_DIR)/launcher|cut -f 1) -le 4
+
 install-goimports:
 	@echo "> Installing goimports..."
 	$(GOCMD) install golang.org/x/tools/cmd/goimports@v0.1.2
